@@ -39,11 +39,44 @@ module Lhm
   #   Use atomic switch to rename tables (defaults to: true)
   #   If using a version of mysql affected by atomic switch bug, LHM forces user
   #   to set this option (see SqlHelper#supports_atomic_switch?)
+  # @option options [String, Symbol] :destination_name
+  #   Name of an already existing table to copy rows into.
+  #   This skips creation and all alter table steps.
   # @yield [Migrator] Yielded Migrator object records the changes
   # @return [Boolean] Returns true if the migration finishes
   # @raise [Error] Raises Lhm::Error in case of a error and aborts the migration
   def change_table(table_name, options = {}, &block)
-    origin = Table.parse(table_name, connection)
+    origin = Table.parse(table_name, connection, options)
+    invoker = Invoker.new(origin, connection)
+    block.call(invoker.migrator)
+    invoker.run(options)
+    true
+  end
+
+  # Migrates only the data from the source table to the destination table and renames
+  #   the destination table to the source table name.
+  #
+  # @param [String, Symbol] table_name Name of the table
+  # @param [String, Symbol] destination_name Name of the pre-existing destination table
+  # @param [Hash] options Optional options to alter the chunk / switch behavior
+  # @option options [Fixnum] :stride
+  #   Size of a chunk (defaults to: 40,000)
+  # @option options [Fixnum] :throttle
+  #   Time to wait between chunks in milliseconds (defaults to: 100)
+  # @option options [Fixnum] :start
+  #   Primary Key position at which to start copying chunks
+  # @option options [Fixnum] :limit
+  #   Primary Key position at which to stop copying chunks
+  # @option options [Boolean] :atomic_switch
+  #   Use atomic switch to rename tables (defaults to: true)
+  #   If using a version of mysql affected by atomic switch bug, LHM forces user
+  #   to set this option (see SqlHelper#supports_atomic_switch?)
+  # @yield [Migrator] Yielded Migrator object records the changes
+  # @return [Boolean] Returns true if the migration finishes
+  # @raise [Error] Raises Lhm::Error in case of a error and aborts the migration
+  def migrate_table(table_name, destination_name, options = {}, &block)
+    options[:destination_name] = destination_name
+    origin = Table.parse(table_name, connection, options)
     invoker = Invoker.new(origin, connection)
     block.call(invoker.migrator)
     invoker.run(options)

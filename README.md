@@ -211,6 +211,22 @@ Ruby:
 Lhm.cleanup(true, until: Time.now - 86400)
 ```
 
+## Migrating data to a pre-existing interim table
+Sometimes you may want to restore or migrate data from a backup first and apply a delta migration afterwards. Once you have setup your interim table with the post migration structure and data you would like you can continue using LHM to migrate the rest.
+
+For example, if you migrated data from a recent backup of your logs table up to row 314 million to a table named `logs_backup`, you could have LHM finish moving the remaining data (the delta) on the live data in production with zero downtime.
+```ruby
+# migrate data
+Lhm.migrate_table :logs, :logs_backup, :start => 314_000_000
+```
+
+Note you can still specify columns that have been renamed as well
+```
+Lhm.migrate_table :logs, :logs_backup, :start => 314_000_000 do |m|
+  m.rename_column :code, :stack_trace
+end
+```
+
 ## Contributing
 
 First, get set up for local development:

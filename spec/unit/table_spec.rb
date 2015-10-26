@@ -38,4 +38,23 @@ describe Lhm::Table do
       @table.satisfies_id_column_requirement?.must_equal false
     end
   end
+
+  describe 'destination_name' do
+    it 'should override destination name when destination_name option is set' do
+      @table = Lhm::Table.new('users', nil, nil, {:destination_name => 'users_copy'})
+      @table.destination_name.must_equal 'users_copy'
+    end
+  end
+
+  describe 'destination_override?' do
+    it 'should return destination override when destination_name option is set' do
+      @table = Lhm::Table.new('users', nil, nil, {:destination_name => 'users_copy'})
+      @table.destination_override?.must_equal true
+    end
+
+    it 'should return no destination override when destination_name option is not set' do
+      @table = Lhm::Table.new('users')
+      @table.destination_override?.must_equal false
+    end
+  end
 end

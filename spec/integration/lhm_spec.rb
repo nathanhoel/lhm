@@ -353,5 +353,44 @@ describe Lhm do
         end
       end
     end
+
+
+  end
+
+  describe 'changes' do
+    before(:each) do
+      table_create(:tracks)
+    end
+
+    it 'should copy all rows' do
+      table_create(:tracks_copy)
+      23.times { |n| execute("insert into tracks set id = #{n + 1}, public = 1") }
+
+      Lhm.migrate_table(:tracks, 'tracks_copy', :atomic_switch => false) do |t|
+        # make no changes
+      end
+
+      slave do
+        count_all(:tracks).must_equal(23)
+      end
+    end
+
+    it 'should copy to renamed column' do
+      table_create(:tracks_modified)
+
+      23.times { |n| execute("insert into tracks set id = #{n + 1}, public = 1") }
+      Lhm.migrate_table(:tracks, 'tracks_modified', :atomic_switch => false) do |t|
+        t.rename_column(:public, :is_public)
+      end
+
+      slave do
+        table_data = table_read(:tracks)
+        table_data.columns['public'].must_equal(nil)
+
+        result = select_one('SELECT is_public from tracks')
+        result = result['is_public'] if result.respond_to?(:has_key?)
+        result.must_equal('1')
+      end
+    end
   end
 end

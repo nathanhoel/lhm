@@ -39,6 +39,9 @@ module Lhm
     #   temporary table.
     #
     def ddl(statement)
+      if @origin.destination_override?
+        raise Error.new("Table changes not applied when destination_table is set.")
+      end
       statements << statement
     end
 
@@ -81,6 +84,9 @@ module Lhm
     # @param [String] old Name of the column to change
     # @param [String] nu New name to use for the column
     def rename_column(old, nu)
+      @renames[old.to_s] = nu.to_s
+      return if @origin.destination_override?
+
       col = @origin.columns[old.to_s]
 
       definition = col[:type]
@@ -88,7 +94,6 @@ module Lhm
       definition += " DEFAULT #{@connection.quote(col[:column_default])}" if col[:column_default]
 
       ddl('alter table `%s` change column `%s` `%s` %s' % [@name, old, nu, definition])
-      @renames[old.to_s] = nu.to_s
     end
 
     # Remove a column from a table
@@ -193,15 +198,18 @@ module Lhm
 
       dest = @origin.destination_name
 
-      if @connection.table_exists?(dest)
+      if !@origin.destination_override? && @connection.table_exists?(dest)
         error("#{ dest } should not exist; not cleaned up from previous run?")
       end
     end
 
     def execute
-      destination_create
-      @statements.each do |stmt|
-        @connection.execute(tagged(stmt))
+      if !@origin.destination_override?
+        destination_create
+
+        @statements.each do |stmt|
+          @connection.execute(tagged(stmt))
+        end
       end
       Migration.new(@origin, destination_read, conditions, renames)
     end

@@ -7,12 +7,13 @@ module Lhm
   class Table
     attr_reader :name, :columns, :indices, :pk, :ddl
 
-    def initialize(name, pk = 'id', ddl = nil)
+    def initialize(name, pk = 'id', ddl = nil, options = {})
       @name = name
       @columns = {}
       @indices = {}
       @pk = pk
       @ddl = ddl
+      @destination_override = options[:destination_name]
     end
 
     def satisfies_id_column_requirement?
@@ -21,20 +22,29 @@ module Lhm
     end
 
     def destination_name
-      "lhmn_#{ @name }"
+      if destination_override?
+        @destination_override
+      else
+        "lhmn_#{ @name }"
+      end
     end
 
-    def self.parse(table_name, connection)
-      Parser.new(table_name, connection).parse
+    def destination_override?
+      !!@destination_override
+    end
+
+    def self.parse(table_name, connection, options = {})
+      Parser.new(table_name, connection, options).parse
     end
 
     class Parser
       include SqlHelper
 
-      def initialize(table_name, connection)
+      def initialize(table_name, connection, options = {})
         @table_name = table_name.to_s
         @schema_name = connection.current_database
         @connection = connection
+        @options = options
       end
 
       def ddl
@@ -47,7 +57,7 @@ module Lhm
       def parse
         schema = read_information_schema
 
-        Table.new(@table_name, extract_primary_key(schema), ddl).tap do |table|
+        Table.new(@table_name, extract_primary_key(schema), ddl, @options).tap do |table|
           schema.each do |defn|
             column_name    = struct_key(defn, 'COLUMN_NAME')
             column_type    = struct_key(defn, 'COLUMN_TYPE')

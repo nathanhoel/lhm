@@ -90,6 +90,22 @@ describe Lhm::Migrator do
         'drop index `custom_index_name` on `lhmn_alt`'
       ])
     end
+
+    it 'should remove an index with a custom name' do
+      @creator.remove_index([:a, :b], :custom_index_name)
+
+      @creator.statements.must_equal([
+        'drop index `custom_index_name` on `lhmn_alt`'
+      ])
+    end
+
+    it 'should error if destination_override? is true' do
+      table = Lhm::Table.new('alt', nil, nil, :destination_name => 'dest')
+      creator = Lhm::Migrator.new(table)
+      assert_raises ::Lhm::Error do
+        creator.add_index(:a)
+      end
+    end
   end
 
   describe 'column changes' do
@@ -116,6 +132,14 @@ describe Lhm::Migrator do
         'alter table `lhmn_alt` modify column `logins` INT(11)'
       ])
     end
+
+    it 'should error if destination_override? is true' do
+      table = Lhm::Table.new('alt', nil, nil, :destination_name => 'dest')
+      creator = Lhm::Migrator.new(table)
+      assert_raises ::Lhm::Error do
+        creator.add_column('logins', 'INT(12)')
+      end
+    end
   end
 
   describe 'direct changes' do
@@ -125,6 +149,14 @@ describe Lhm::Migrator do
       @creator.statements.must_equal([
         'alter table `lhmn_alt` add column `f` tinyint(1)'
       ])
+    end
+
+    it 'should error if destination_override? is true' do
+      table = Lhm::Table.new('alt', nil, nil, :destination_name => 'dest')
+      creator = Lhm::Migrator.new(table)
+      assert_raises ::Lhm::Error do
+        creator.ddl('alter table `%s` add column `f` tinyint(1)' % creator.name)
+      end
     end
   end
 
